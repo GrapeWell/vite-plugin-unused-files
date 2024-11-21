@@ -1,7 +1,7 @@
-const path = require("path");
-const fs = require("fs/promises");
-const { normalizePath } = require("vite");
-const glob = require("fast-glob");
+import path from "path";
+import fs from "fs/promises";
+import { normalizePath } from "vite";
+import glob from "fast-glob";
 
 function findUnusedFilesPlugin({
   include = ["src/**/*.{tsx,ts,jsx,js,css,scss,less,png,jpg,gif,svg}"],
@@ -177,4 +177,4 @@ function findUnusedFilesPlugin({
   };
 }
 
-module.exports = findUnusedFilesPlugin;
+export { findUnusedFilesPlugin as default };

@@ -2,9 +2,16 @@
   "name": "vite-plugin-unused-files",
   "version": "0.0.2",
   "description": "A Vite plugin to find and optionally delete unused files in your project.",
-  "main": "src/index.js",
-  "types": "src/index.d.ts",
-  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.mjs",
+      "require": "./src/index.js"
+    },
+    "./*": "./*"
+  },
   "keywords": [
     "vite",
     "plugin",
@@ -17,13 +24,10 @@
     "type": "git",
     "url": "https://github.com/GrapeWell/vite-plugin-unused-files"
   },
-  "author": "Zhou Hao",
+  "author": "Zhou Hao <1016939850@qq.com>",
   "license": "MIT",
   "dependencies": {
     "fast-glob": "^3.3.2"
-  },
-  "peerDependencies": {
-    "vite": "^4.0.0"
   },
   "scripts": {
     "test": "node src/index.js"
