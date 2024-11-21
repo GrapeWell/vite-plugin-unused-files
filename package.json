@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "A Vite plugin to find and optionally delete unused files in your project.",
   "main": "src/index.js",
+  "types": "src/index.d.ts",
   "type": "module",
   "keywords": [
     "vite",
