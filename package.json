@@ -1,0 +1,30 @@
+{
+  "name": "vite-plugin-unused-files",
+  "version": "0.0.1",
+  "description": "A Vite plugin to find and optionally delete unused files in your project.",
+  "main": "src/index.js",
+  "type": "module",
+  "keywords": [
+    "vite",
+    "plugin",
+    "unused",
+    "files",
+    "cleanup",
+    "react"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GrapeWell/vite-plugin-unused-files"
+  },
+  "author": "Zhou Hao",
+  "license": "MIT",
+  "dependencies": {
+    "fast-glob": "^3.3.2"
+  },
+  "peerDependencies": {
+    "vite": "^4.0.0"
+  },
+  "scripts": {
+    "test": "node src/index.js"
+  }
+}
