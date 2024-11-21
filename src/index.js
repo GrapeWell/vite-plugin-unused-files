@@ -91,8 +91,8 @@ function findUnusedFilesPlugin({
           ".ts",
           ".tsx",
           ".css",
-          ".less",
           ".scss",
+          ".less",
         ];
         for (const ext of extensions) {
           try {
