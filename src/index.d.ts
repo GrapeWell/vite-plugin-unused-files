@@ -1,10 +1,10 @@
 export interface FindUnusedFilesPluginOptions {
   include?: string[];
   exclude?: string[];
-  entryFile?: string;
   alias?: Record<string, string>;
   root?: string;
   dryRun?: boolean;
+  failOnUnused?: boolean;
 }
 
 /**
