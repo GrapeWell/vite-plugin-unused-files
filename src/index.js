@@ -4,21 +4,78 @@ const { normalizePath } = require("vite");
 const glob = require("fast-glob");
 
 function findUnusedFilesPlugin({
-  include = ["src/**/*.{tsx,ts,jsx,js,css,scss,less,png,jpg,gif,svg}"],
+  include = ["src"],
   exclude = ["src/**/*.d.ts"],
-  entryFile = "src/main.tsx", // 默认入口文件
-  alias = { "@": "src" }, // 别名配置
+  alias = { "@": "src" },
   root = process.cwd(),
   dryRun = true,
+  failOnUnused = false,
 } = {}) {
   return {
     name: "vite-plugin-find-unused-files",
-    async closeBundle() {
+    async buildStart() {
       console.log("Analyzing unused files...");
-      const dependencyGraph = new Map(); // 文件依赖图
-      const allFilesSet = new Set(); // 项目中的所有文件
+      const dependencyGraph = new Map();
+      const allFilesSet = new Set();
+      const fileContentCache = new Map();
+      const extensions = new Set(); // 动态生成扩展名集合
+      const fileAlreadyDeleted = new Set();
 
-      // 替换别名为真实路径
+      // 提取扩展名
+      const extractExtensions = () => {
+        include.forEach((pattern) => {
+          const match = pattern.match(/\.\w+|\.\{\w+(,\w+)*\}/g);
+          if (match) {
+            match.forEach((ext) => {
+              if (ext.startsWith(".{")) {
+                // 处理 "{tsx,js}" 类型的模式
+                ext
+                  .replace(/[{}]/g, "")
+                  .split(",")
+                  .forEach((e) => extensions.add(`.${e}`));
+              } else {
+                extensions.add(ext);
+              }
+            });
+          }
+        });
+      };
+
+      // 动态提取扩展名
+      extractExtensions();
+
+      // 如果未指定扩展名，添加默认支持的扩展名
+      if (extensions.size === 0) {
+        [
+          ".tsx",
+          ".ts",
+          ".jsx",
+          ".js",
+          ".css",
+          ".scss",
+          ".less",
+          ".png",
+          ".jpg",
+          ".jpeg",
+          ".gif",
+          ".svg",
+          ".vue",
+        ].forEach((ext) => extensions.add(ext));
+      }
+
+      const getFileContent = async (filePath) => {
+        if (fileContentCache.has(filePath))
+          return fileContentCache.get(filePath);
+        try {
+          const content = await fs.readFile(filePath, "utf-8");
+          fileContentCache.set(filePath, content);
+          return content;
+        } catch (err) {
+          console.warn(`[Warning] Could not read file: ${filePath}`);
+          return null;
+        }
+      };
+
       const resolveAlias = (importPath) => {
         for (const [key, value] of Object.entries(alias)) {
           if (importPath.startsWith(key)) {
@@ -30,105 +87,29 @@ function findUnusedFilesPlugin({
         return null;
       };
 
-      // 收集文件依赖
-      const collectDependencies = async (filePath) => {
-        const normalizedPath = normalizePath(filePath);
-
-        if (dependencyGraph.has(normalizedPath)) return; // 防止重复解析
-        dependencyGraph.set(normalizedPath, new Set()); // 初始化依赖集合
-
-        // 读取文件内容
-        let content;
-        try {
-          content = await fs.readFile(normalizedPath, "utf-8");
-        } catch (err) {
-          console.warn(`[Warning] Could not read file: ${normalizedPath}`);
-          return;
-        }
-
-        // 正则匹配导入模式
-        const importPatterns = [
-          /import\s+["'](.*?)["'];?/g, // 普通 import
-          /from\s+["'](.*?)["'];?/g, // from 语句
-          /import\s*\(["'](.*?)["']\)/g, // 动态导入
-          /lazy\s*\(\s*\(\s*\)\s*=>\s*import\(["'](.*?)["']\)\s*\)/g, // React.lazy 动态导入
-          /url\(\s*['"]?(.*?)['"]?\s*\)/g, // CSS/LESS url() 语句
-        ];
-
-        for (const pattern of importPatterns) {
-          for (const match of content.matchAll(pattern)) {
-            const importPath = match[1];
-            if (importPath) {
-              let resolvedPath;
-
-              if (importPath.startsWith(".")) {
-                // 相对路径
-                resolvedPath = normalizePath(
-                  path.resolve(path.dirname(normalizedPath), importPath)
-                );
-                resolvedPath = await resolveFilePath(resolvedPath);
-              } else if (importPath.startsWith("@/")) {
-                // 别名路径
-                resolvedPath = resolveAlias(importPath);
-                resolvedPath = await resolveFilePath(resolvedPath);
-              } else {
-                // 忽略第三方依赖
-                continue;
-              }
-
-              if (resolvedPath) {
-                dependencyGraph.get(normalizedPath).add(resolvedPath); // 添加依赖关系
-                await collectDependencies(resolvedPath); // 递归解析依赖
-              } else {
-                console.warn(
-                  `[Warning] Could not resolve: ${importPath} in ${normalizedPath}`
-                );
-              }
-            }
-          }
-        }
-      };
-
       const resolveFilePath = async (filePath) => {
-        // 检查是否存在扩展名
-        if (path.extname(filePath)) {
+        const ext = path.extname(filePath);
+        if (extensions.has(ext)) {
           try {
             await fs.access(filePath);
-            return normalizePath(filePath); // 确保路径标准化
+            return normalizePath(filePath);
           } catch {
             return null;
           }
         }
 
-        // 尝试补全扩展名
-        const extensions = [
-          ".js",
-          ".jsx",
-          ".ts",
-          ".tsx",
-          ".css",
-          ".scss",
-          ".less",
-          ".png",
-          ".jpg",
-          ".jpeg",
-          ".gif",
-          ".svg",
-        ];
         for (const ext of extensions) {
+          const candidate = filePath + ext;
           try {
-            const candidate = filePath + ext;
             await fs.access(candidate);
             return normalizePath(candidate);
           } catch {}
         }
 
-        // 尝试解析 index 文件
         return await resolveIndexFile(filePath);
       };
 
       const resolveIndexFile = async (dirPath) => {
-        const extensions = [".js", ".jsx", ".ts", ".tsx"];
         for (const ext of extensions) {
           try {
             const candidate = path.join(dirPath, "index" + ext);
@@ -139,19 +120,60 @@ function findUnusedFilesPlugin({
         return null;
       };
 
-      // 获取项目中所有文件
+      const collectDependencies = async (filePath) => {
+        const normalizedPath = normalizePath(filePath);
+        if (dependencyGraph.has(normalizedPath)) return;
+        dependencyGraph.set(normalizedPath, new Set());
+        const content = await getFileContent(normalizedPath);
+        if (!content) return;
+
+        const importPatterns = [
+          /import\s+["'](.*?)["'];?/g,
+          /from\s+["'](.*?)["'];?/g,
+          /import\s*\(["'](.*?)["']\)/g,
+          /lazy\s*\(\s*\(\s*\)\s*=>\s*import\(["'](.*?)["']\)\s*\)/g,
+          /url\(\s*['"]?(.*?)['"]?\s*\)/g,
+        ];
+
+        for (const pattern of importPatterns) {
+          for (const match of content.matchAll(pattern)) {
+            const importPath = match[1];
+            if (importPath) {
+              let resolvedPath;
+              if (importPath.startsWith(".")) {
+                resolvedPath = normalizePath(
+                  path.resolve(path.dirname(normalizedPath), importPath)
+                );
+                resolvedPath = await resolveFilePath(resolvedPath);
+              } else if (importPath.startsWith("@/")) {
+                resolvedPath = resolveAlias(importPath);
+                resolvedPath = await resolveFilePath(resolvedPath);
+              } else {
+                continue;
+              }
+              if (resolvedPath) {
+                dependencyGraph.get(normalizedPath).add(resolvedPath);
+                await collectDependencies(resolvedPath);
+              } else {
+                fileAlreadyDeleted.add(
+                  `[Warning] Could not resolve: ${importPath} in ${normalizedPath}`
+                );
+              }
+            }
+          }
+        }
+      };
+
       const allFiles = await glob(include, { cwd: root, ignore: exclude });
       const absoluteAllFiles = allFiles.map((file) =>
         normalizePath(path.resolve(root, file))
       );
       absoluteAllFiles.forEach((file) => allFilesSet.add(file));
 
-      // 解析所有文件依赖
       for (const file of absoluteAllFiles) {
         await collectDependencies(file);
       }
 
-      // 找出未使用的文件
       const usedFiles = new Set(
         Array.from(dependencyGraph.values()).flatMap((deps) => [...deps])
       );
@@ -159,17 +181,25 @@ function findUnusedFilesPlugin({
         (file) => !usedFiles.has(file)
       );
 
-      // 输出未使用的文件
+      const uniqueUnusedFiles = [...new Set(unusedFiles)];
+
       if (dryRun) {
+        console.log("[Dry Run] Unused files:", uniqueUnusedFiles);
+
         console.log(
-          "[Dry Run] Unused files:",
-          unusedFiles.filter((file) => !file.includes(entryFile))
+          "The file has been deleted, but the reference has not been deleted"
         );
+        console.log(Array.from(fileAlreadyDeleted));
       } else {
         for (const file of unusedFiles) {
           await fs.unlink(file);
           console.log(`[Deleted] ${file}`);
         }
+      }
+
+      if (failOnUnused && uniqueUnusedFiles.length > 0) {
+        const errorMessage = `Found ${uniqueUnusedFiles.length} unused files`;
+        throw new Error(errorMessage);
       }
 
       console.log("Unused files analysis complete.");
