@@ -4,7 +4,7 @@ const { normalizePath } = require("vite");
 const glob = require("fast-glob");
 
 function findUnusedFilesPlugin({
-  include = ["src"],
+  include = ["src/**/*"],
   exclude = ["src/**/*.d.ts"],
   alias = { "@": "src" },
   root = process.cwd(),
@@ -32,36 +32,37 @@ function findUnusedFilesPlugin({
                 ext
                   .replace(/[{}]/g, "")
                   .split(",")
-                  .forEach((e) => extensions.add(`.${e}`));
+                  .forEach((e) =>
+                    extensions.add(e.startsWith(".") ? e : `.${e}`)
+                  );
               } else {
-                extensions.add(ext);
+                extensions.add(ext.startsWith(".") ? ext : `.${ext}`);
               }
             });
           }
         });
+        if (extensions.size === 0) {
+          [
+            ".tsx",
+            ".ts",
+            ".jsx",
+            ".js",
+            ".css",
+            ".scss",
+            ".less",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".svg",
+            ".vue",
+          ].forEach((ext) => extensions.add(ext));
+        }
+        console.log(extensions);
       };
 
       // 动态提取扩展名
       extractExtensions();
-
-      // 如果未指定扩展名，添加默认支持的扩展名
-      if (extensions.size === 0) {
-        [
-          ".tsx",
-          ".ts",
-          ".jsx",
-          ".js",
-          ".css",
-          ".scss",
-          ".less",
-          ".png",
-          ".jpg",
-          ".jpeg",
-          ".gif",
-          ".svg",
-          ".vue",
-        ].forEach((ext) => extensions.add(ext));
-      }
 
       const getFileContent = async (filePath) => {
         if (fileContentCache.has(filePath))
