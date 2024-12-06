@@ -14,12 +14,12 @@ npm install vite-plugin-unused-files
 
 ```javascript
 {
-  include = ["src"],
-  exclude = ["src/**/*.d.ts"],
-  alias = { "@": "src" },
-  root = process.cwd(),
-  dryRun = true,
-  failOnUnused = false,
+  include: ["src/**/*"],
+  exclude: ["src/**/*.d.ts"],
+  alias: { "@": "src" },
+  root: process.cwd(),
+  dryRun: true,
+  failOnUnused: false,
 }
 
 import findUnusedFilesPlugin from "vite-plugin-unused-files";
@@ -40,7 +40,7 @@ export default {
   plugins: [
     findUnusedFilesPlugin({
       alias: { "@": "src" },
-      include = ["src/**/*.{tsx,ts,jsx,js,css,scss,less,png,jpg,gif,svg}"],
+      include: ["src/**/*.{tsx,ts,jsx,js,css,scss,less,png,jpg,gif,svg}"],
       exclude: ["src/**/*.d.ts"],
       dryRun: true,
       failOnUnused: true,
