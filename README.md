@@ -1,81 +1,129 @@
 # vite-plugin-unused-files
 
-A Vite plugin for finding and listing unused files in your project.
+A Vite plugin to find and optionally remove unused files in your project.
+
+## Features
+
+- 🔍 Detects unused files in your project
+- 🎯 Supports multiple file types:
+  - JavaScript/TypeScript
+  - Vue Single File Components
+  - CSS/SCSS/Less
+  - Static assets (images, fonts, etc.)
+- 🚀 Advanced dependency analysis:
+  - React.lazy dynamic imports
+  - Vue dynamic imports
+  - CSS/SCSS/Less url() references
+  - JSX/TSX imports
+- 🎨 Customizable configuration
 
 ## Installation
 
 ```bash
-npm install vite-plugin-unused-files
+npm install vite-plugin-unused-files --save-dev
+# or
+yarn add vite-plugin-unused-files -D
+# or
+pnpm add vite-plugin-unused-files -D
 ```
 
 ## Usage
 
-### Default Options
+```javascript
+// vite.config.js
+import findUnusedFiles from 'vite-plugin-unused-files'
+
+export default {
+  plugins: [
+    findUnusedFiles({
+      // options
+    })
+  ]
+}
+```
+
+## Configuration
 
 ```javascript
 {
-  include: ["src/**/*"],
-  exclude: ["src/**/*.d.ts"],
-  alias: { "@": "src" },
+  // Files to include in the analysis (glob patterns)
+  include: ['src/**/*'],
+  
+  // Files to exclude from analysis
+  exclude: ['src/**/*.d.ts'],
+  
+  // Path aliases configuration
+  alias: { '@': 'src' },
+  
+  // Project root directory
   root: process.cwd(),
+  
+  // Run in dry mode (no files will be deleted)
   dryRun: true,
-  failOnUnused: false,
+  
+  // Fail build if unused files are found
+  failOnUnused: false
 }
-
-import findUnusedFilesPlugin from "vite-plugin-unused-files";
-
-export default {
-  plugins: [
-    findUnusedFilesPlugin(),
-  ],
-};
 ```
 
-### Custom Options
+## How It Works
+
+The plugin analyzes your project's dependency graph by:
+
+1. Scanning all files in your project (based on include/exclude patterns)
+2. Parsing different file types to extract dependencies:
+   - JavaScript/TypeScript imports (static and dynamic)
+   - React.lazy dynamic imports
+   - Vue SFC dependencies (script, template, and style blocks)
+   - CSS/SCSS/Less imports and url() references
+3. Building a dependency graph
+4. Identifying files that aren't referenced in the dependency graph
+
+## Examples
+
+### Basic Usage
 
 ```javascript
-import findUnusedFilesPlugin from "vite-plugin-unused-files";
+// vite.config.js
+import findUnusedFiles from 'vite-plugin-unused-files'
 
 export default {
   plugins: [
-    findUnusedFilesPlugin({
-      alias: { "@": "src" },
-      include: ["src/**/*.{tsx,ts,jsx,js,css,scss,less,png,jpg,gif,svg}"],
-      exclude: ["src/**/*.d.ts"],
-      dryRun: true,
-      failOnUnused: true,
-    }),
-  ],
-};
+    findUnusedFiles({
+      include: ['src/**/*'],
+      exclude: ['src/**/*.d.ts'],
+      dryRun: true
+    })
+  ]
+}
 ```
 
-### Options Explanation
+### Production Build with File Deletion
 
-- `include`: Directories to include.
-- `exclude`: Directories and files to exclude.
-- `alias`: Alias configuration.
-- `dryRun`: Whether to delete files. `false` will automatically delete files.
-- `failOnUnused`: Whether to throw an error. `true` will throw an error and interrupt the build process.
+```javascript
+// vite.config.js
+import findUnusedFiles from 'vite-plugin-unused-files'
 
-## Information
+export default {
+  plugins: [
+    findUnusedFiles({
+      include: ['src/**/*'],
+      exclude: ['src/**/*.d.ts', 'src/**/*.test.*'],
+      dryRun: process.env.NODE_ENV !== 'production',
+      failOnUnused: true
+    })
+  ]
+}
+```
 
-- Supported import formats:
+## Notes
 
-  ```javascript
-  import "./style.css"; // Static import of style files
-  import { something } from "./module"; // Import specific content from a module
-  import("./dynamic-module"); // Dynamic import of a module
-  lazy(() => import("./lazy-module")); // Lazy loading module
-  ```
+- Always run with `dryRun: true` first to review the list of unused files
+- The plugin detects files that are not imported anywhere in your codebase
+- External URLs and data URLs are automatically filtered out
+- Use `failOnUnused: true` in CI/CD pipelines to catch unused files early
+- The analysis results are for reference only, please review carefully before deleting any files
 
-- Use Cases:
+## License
 
-  - Suitable for cleaning up unused files in your project.
-  - Supports custom entry files, aliases, and inclusion/exclusion of file types.
-  - It is recommended to specify the file suffix in `include` for a better experience
-
-- Notes:
-
-  - The final results are for reference only. It is recommended to back up your files before deleting them.
-
-- Report issues on GitHub.
+MIT
