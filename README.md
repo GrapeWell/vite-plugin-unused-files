@@ -31,15 +31,15 @@ pnpm add vite-plugin-unused-files -D
 
 ```javascript
 // vite.config.js
-import findUnusedFiles from 'vite-plugin-unused-files'
+import findUnusedFiles from "vite-plugin-unused-files";
 
 export default {
   plugins: [
     findUnusedFiles({
       // options
-    })
-  ]
-}
+    }),
+  ],
+};
 ```
 
 ## Configuration
@@ -48,19 +48,19 @@ export default {
 {
   // Files to include in the analysis (glob patterns)
   include: ['src/**/*'],
-  
+
   // Files to exclude from analysis
   exclude: ['src/**/*.d.ts'],
-  
+
   // Path aliases configuration
   alias: { '@': 'src' },
-  
+
   // Project root directory
   root: process.cwd(),
-  
+
   // Run in dry mode (no files will be deleted)
   dryRun: true,
-  
+
   // Fail build if unused files are found
   failOnUnused: false
 }
@@ -85,35 +85,35 @@ The plugin analyzes your project's dependency graph by:
 
 ```javascript
 // vite.config.js
-import findUnusedFiles from 'vite-plugin-unused-files'
+import findUnusedFiles from "vite-plugin-unused-files";
 
 export default {
   plugins: [
     findUnusedFiles({
-      include: ['src/**/*'],
-      exclude: ['src/**/*.d.ts'],
-      dryRun: true
-    })
-  ]
-}
+      include: ["src/**/*"],
+      exclude: ["src/**/*.d.ts"],
+      dryRun: true,
+    }),
+  ],
+};
 ```
 
 ### Production Build with File Deletion
 
 ```javascript
 // vite.config.js
-import findUnusedFiles from 'vite-plugin-unused-files'
+import findUnusedFiles from "vite-plugin-unused-files";
 
 export default {
   plugins: [
     findUnusedFiles({
-      include: ['src/**/*'],
-      exclude: ['src/**/*.d.ts', 'src/**/*.test.*'],
-      dryRun: process.env.NODE_ENV !== 'production',
-      failOnUnused: true
-    })
-  ]
-}
+      include: ["src/**/*"],
+      exclude: ["src/**/*.d.ts", "src/**/*.test.*"],
+      dryRun: process.env.NODE_ENV !== "production",
+      failOnUnused: true,
+    }),
+  ],
+};
 ```
 
 ## Notes
