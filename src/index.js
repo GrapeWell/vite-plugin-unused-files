@@ -9,6 +9,17 @@ const postcss = require("postcss");
 const postcssLess = require("postcss-less");
 const postcssScss = require("postcss-scss");
 
+const priorityMap = {
+  ".tsx": 1,
+  ".jsx": 2,
+  ".vue": 3,
+  ".ts": 4,
+  ".js": 5,
+  ".less": 6,
+  ".scss": 7,
+  ".css": 8,
+};
+
 function findUnusedFilesPlugin({
   include = ["src/**/*"],
   exclude = ["src/**/*.d.ts"],
@@ -24,7 +35,7 @@ function findUnusedFilesPlugin({
       const dependencyGraph = new Map();
       const allFilesSet = new Set();
       const fileContentCache = new Map();
-      const extensions = new Set(); // 动态生成扩展名集合
+      let extensions = new Set(); // 动态生成扩展名集合
       const fileAlreadyDeleted = new Set();
 
       // 从文件路径中提取扩展名
@@ -43,11 +54,20 @@ function findUnusedFilesPlugin({
         });
 
         // 收集所有文件并提取扩展名
-        files.forEach(file => {
+        files.forEach((file) => {
           const absolutePath = normalizePath(path.resolve(root, file));
           allFilesSet.add(absolutePath);
           extractExtension(file);
         });
+
+        // 扩展名排序
+        extensions = new Set(
+          Array.from(extensions).sort((a, b) => {
+            const priorityA = priorityMap[a] || Infinity; // 未定义的扩展名放在最后
+            const priorityB = priorityMap[b] || Infinity;
+            return priorityA - priorityB;
+          })
+        );
 
         return files;
       };
@@ -59,7 +79,7 @@ function findUnusedFilesPlugin({
       );
 
       if (extensions.size === 0) {
-        console.warn('[Warning] No files found matching the include patterns');
+        console.warn("[Warning] No files found matching the include patterns");
         return;
       }
 
@@ -77,23 +97,30 @@ function findUnusedFilesPlugin({
           CallExpression(path) {
             if (
               path.node.callee.type === "Import" ||
-              (path.node.callee.name === "require" && path.node.arguments[0]?.value)
+              (path.node.callee.name === "require" &&
+                path.node.arguments[0]?.value)
             ) {
               imports.push(path.node.arguments[0].value);
             }
           },
           VariableDeclarator(path) {
             // 处理 React.lazy 动态导入
-            if (path.node.init?.type === 'CallExpression' &&
-                path.node.init.callee.type === 'MemberExpression' &&
-                path.node.init.callee.object.name === 'React' &&
-                path.node.init.callee.property.name === 'lazy') {
+            if (
+              path.node.init?.type === "CallExpression" &&
+              path.node.init.callee.type === "MemberExpression" &&
+              path.node.init.callee.object.name === "React" &&
+              path.node.init.callee.property.name === "lazy"
+            ) {
               const argument = path.node.init.arguments[0];
-              if (argument.type === 'ArrowFunctionExpression' || 
-                  argument.type === 'FunctionExpression') {
+              if (
+                argument.type === "ArrowFunctionExpression" ||
+                argument.type === "FunctionExpression"
+              ) {
                 const returnStatement = argument.body;
-                if (returnStatement.type === 'CallExpression' && 
-                    returnStatement.callee.type === 'Import') {
+                if (
+                  returnStatement.type === "CallExpression" &&
+                  returnStatement.callee.type === "Import"
+                ) {
                   imports.push(returnStatement.arguments[0].value);
                 }
               }
@@ -101,17 +128,22 @@ function findUnusedFilesPlugin({
           },
           JSXAttribute(path) {
             // 处理 JSX 中的资源引用
-            if ((path.node.name.name === 'src' || path.node.name.name === 'href') && 
-                path.node.value?.value) {
+            if (
+              (path.node.name.name === "src" ||
+                path.node.name.name === "href") &&
+              path.node.value?.value
+            ) {
               const value = path.node.value.value;
-              if (!value.startsWith('data:') && 
-                  !value.startsWith('http://') && 
-                  !value.startsWith('https://') &&
-                  !value.startsWith('//')) {
+              if (
+                !value.startsWith("data:") &&
+                !value.startsWith("http://") &&
+                !value.startsWith("https://") &&
+                !value.startsWith("//")
+              ) {
                 imports.push(value);
               }
             }
-          }
+          },
         });
 
         return imports;
@@ -123,7 +155,8 @@ function findUnusedFilesPlugin({
 
         // Parse script content
         if (descriptor.script || descriptor.scriptSetup) {
-          const scriptContent = (descriptor.script || descriptor.scriptSetup).content;
+          const scriptContent = (descriptor.script || descriptor.scriptSetup)
+            .content;
           imports.push(...parseJsxContent(scriptContent));
         }
 
@@ -136,12 +169,13 @@ function findUnusedFilesPlugin({
           while ((match = srcRegex.exec(template)) !== null) {
             imports.push(match[1]);
           }
-          
+
           // 匹配动态资源引用
-          const dynamicSrcRegex = /:[sS]rc=["']([^"']+)["']|v-bind:src=["']([^"']+)["']|@src=["']([^"']+)["']/g;
+          const dynamicSrcRegex =
+            /:[sS]rc=["']([^"']+)["']|v-bind:src=["']([^"']+)["']|@src=["']([^"']+)["']/g;
           while ((match = dynamicSrcRegex.exec(template)) !== null) {
             const value = match[1] || match[2] || match[3];
-            if (value && !value.startsWith('{') && !value.includes('${')) {
+            if (value && !value.startsWith("{") && !value.includes("${")) {
               imports.push(value);
             }
           }
@@ -156,15 +190,18 @@ function findUnusedFilesPlugin({
         // Parse style blocks
         if (descriptor.styles) {
           for (const style of descriptor.styles) {
-            if (style.lang === 'less' || style.lang === 'scss') {
-              const processor = style.lang === 'less' ? postcssLess : postcssScss;
-              const result = await postcss().process(style.content, { parser: processor });
+            if (style.lang === "less" || style.lang === "scss") {
+              const processor =
+                style.lang === "less" ? postcssLess : postcssScss;
+              const result = await postcss().process(style.content, {
+                parser: processor,
+              });
               // 提取 @import
-              result.root.walkAtRules('import', rule => {
-                imports.push(rule.params.replace(/['"]/g, ''));
+              result.root.walkAtRules("import", (rule) => {
+                imports.push(rule.params.replace(/['"]/g, ""));
               });
               // 提取 url()
-              result.root.walkDecls(decl => {
+              result.root.walkDecls((decl) => {
                 const urlRegex = /url\(['"]?([^'"()]+)['"]?\)/g;
                 let match;
                 while ((match = urlRegex.exec(decl.value)) !== null) {
@@ -176,35 +213,41 @@ function findUnusedFilesPlugin({
         }
 
         // 过滤掉数据 URL 和外部 URL
-        return imports.filter(imp => 
-          !imp.startsWith('data:') && 
-          !imp.startsWith('http://') && 
-          !imp.startsWith('https://') &&
-          !imp.startsWith('//')
+        return imports.filter(
+          (imp) =>
+            !imp.startsWith("data:") &&
+            !imp.startsWith("http://") &&
+            !imp.startsWith("https://") &&
+            !imp.startsWith("//")
         );
       };
 
       const parseStyleContent = async (content, ext) => {
         const imports = [];
         try {
-          const processor = ext === '.less' ? postcssLess : postcssScss;
-          const result = await postcss().process(content, { parser: processor });
+          const processor = ext === ".less" ? postcssLess : postcssScss;
+          const result = await postcss().process(content, {
+            parser: processor,
+          });
 
           // 处理 @import 语句
-          result.root.walkAtRules('import', rule => {
-            const importPath = rule.params.replace(/['"]/g, '');
+          result.root.walkAtRules("import", (rule) => {
+            const importPath = rule.params.replace(/['"]/g, "");
             imports.push(importPath);
           });
 
           // 处理 url() 引用
-          result.root.walkDecls(decl => {
-            const urlMatches = decl.value?.match(/url\(['"]?([^'"()]+)['"]?\)/g) || [];
+          result.root.walkDecls((decl) => {
+            const urlMatches =
+              decl.value?.match(/url\(['"]?([^'"()]+)['"]?\)/g) || [];
             for (const match of urlMatches) {
-              const url = match.replace(/url\(['"]?([^'"()]+)['"]?\)/, '$1');
-              if (!url.startsWith('data:') && 
-                  !url.startsWith('http://') && 
-                  !url.startsWith('https://') &&
-                  !url.startsWith('//')) {
+              const url = match.replace(/url\(['"]?([^'"()]+)['"]?\)/, "$1");
+              if (
+                !url.startsWith("data:") &&
+                !url.startsWith("http://") &&
+                !url.startsWith("https://") &&
+                !url.startsWith("//")
+              ) {
                 imports.push(url);
               }
             }
@@ -253,8 +296,10 @@ function findUnusedFilesPlugin({
         }
 
         // Handle relative paths
-        if (importPath.startsWith('.')) {
-          return normalizePath(path.resolve(path.dirname(currentFile), importPath));
+        if (importPath.startsWith(".")) {
+          return normalizePath(
+            path.resolve(path.dirname(currentFile), importPath)
+          );
         }
 
         // Handle node_modules or other paths
@@ -275,16 +320,19 @@ function findUnusedFilesPlugin({
 
         // Try with different extensions if no extension or file not found
         const basePathsToTry = [resolvedPath];
-        
+
         // If the path doesn't end with 'index', also try with /index
-        if (!resolvedPath.endsWith('index')) {
-          basePathsToTry.push(path.join(resolvedPath, 'index'));
+        if (!resolvedPath.endsWith("index")) {
+          basePathsToTry.push(path.join(resolvedPath, "index"));
         }
 
         // Try all possible combinations of base paths and extensions
         for (const basePath of basePathsToTry) {
           // If the base path has an extension, try it first
-          if (path.extname(basePath) && extensions.has(path.extname(basePath))) {
+          if (
+            path.extname(basePath) &&
+            extensions.has(path.extname(basePath))
+          ) {
             try {
               await fs.access(basePath);
               return normalizePath(basePath);
@@ -328,11 +376,11 @@ function findUnusedFilesPlugin({
         let imports = [];
 
         try {
-          if (ext === '.vue') {
+          if (ext === ".vue") {
             imports = await parseVueContent(content);
-          } else if (['.jsx', '.tsx', '.js', '.ts'].includes(ext)) {
+          } else if ([".jsx", ".tsx", ".js", ".ts"].includes(ext)) {
             imports = parseJsxContent(content);
-          } else if (['.less', '.scss'].includes(ext)) {
+          } else if ([".less", ".scss"].includes(ext)) {
             imports = await parseStyleContent(content, ext);
           }
 
@@ -367,7 +415,11 @@ function findUnusedFilesPlugin({
       const uniqueUnusedFiles = [...new Set(unusedFiles)];
 
       if (dryRun) {
-        console.log("\n[Dry Run] Found", uniqueUnusedFiles.length, "unused files:");
+        console.log(
+          "\n[Dry Run] Found",
+          uniqueUnusedFiles.length,
+          "unused files:"
+        );
         uniqueUnusedFiles.forEach((file) => {
           console.log(`- ${file}`);
         });
