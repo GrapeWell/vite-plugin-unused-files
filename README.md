@@ -4,18 +4,20 @@ A Vite plugin to find and optionally remove unused files in your project.
 
 ## Features
 
-- 🔍 Detects unused files in your project
-- 🎯 Supports multiple file types:
-  - JavaScript/TypeScript
-  - Vue Single File Components
-  - CSS/SCSS/Less
+- 🔍 **Deep Analysis**: Uses AST parsing (Babel, Vue Compiler, PostCSS) for accurate dependency detection.
+- 🎯 **Broad Support**:
+  - JavaScript/TypeScript (`.js`, `.ts`, `.jsx`, `.tsx`)
+  - Vue Single File Components (`.vue`)
+  - CSS/SCSS/Less (`.css`, `.scss`, `.less`)
   - Static assets (images, fonts, etc.)
-- 🚀 Advanced dependency analysis:
-  - React.lazy dynamic imports
-  - Vue dynamic imports
-  - CSS/SCSS/Less url() references
-  - JSX/TSX imports
-- 🎨 Customizable configuration
+- 🚀 **Advanced Detection**:
+  - ES Modules (`import`/`export`)
+  - CommonJS (`require`)
+  - Dynamic imports (`import()`)
+  - React.lazy & Vue async components
+  - CSS `@import` and `url()`
+  - JSX/Template asset references (`src`, `href`)
+- 🛡️ **Safe**: Defaults to `dryRun: true` to prevent accidental deletion.
 
 ## Installation
 
@@ -44,85 +46,53 @@ export default {
 
 ## Configuration
 
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `include` | `string[]` | `['src/**/*']` | Glob patterns for files to analyze. |
+| `exclude` | `string[]` | `['src/**/*.d.ts']` | Glob patterns for files to ignore. |
+| `alias` | `object` | `{ '@': 'src' }` | Path aliases mapping. |
+| `root` | `string` | `process.cwd()` | Project root directory. |
+| `dryRun` | `boolean` | `true` | If `true`, logs unused files without deleting them. |
+| `failOnUnused` | `boolean` | `false` | If `true`, throws an error when unused files are found (useful for CI). |
+
 ```javascript
-{
-  // Files to include in the analysis (glob patterns)
+findUnusedFiles({
   include: ['src/**/*'],
-
-  // Files to exclude from analysis
-  exclude: ['src/**/*.d.ts'],
-
-  // Path aliases configuration
-  alias: { '@': 'src' },
-
-  // Project root directory
-  root: process.cwd(),
-
-  // Run in dry mode (no files will be deleted)
-  dryRun: true,
-
-  // Fail build if unused files are found
-  failOnUnused: false
-}
+  exclude: ['src/**/*.test.ts', 'src/**/*.d.ts'],
+  alias: { 
+    '@': 'src',
+    '~': 'src/assets'
+  },
+  dryRun: true, // Set to false to actually delete files
+})
 ```
 
 ## How It Works
 
-The plugin analyzes your project's dependency graph by:
+The plugin builds a complete dependency graph of your project:
 
-1. Scanning all files in your project (based on include/exclude patterns)
-2. Parsing different file types to extract dependencies:
-   - JavaScript/TypeScript imports (static and dynamic)
-   - React.lazy dynamic imports
-   - Vue SFC dependencies (script, template, and style blocks)
-   - CSS/SCSS/Less imports and url() references
-3. Building a dependency graph
-4. Identifying files that aren't referenced in the dependency graph
+1.  **Scan**: Finds all files matching your `include` patterns.
+2.  **Parse**: Uses specialized parsers for each file type to extract imports:
+    *   **JS/TS**: Uses `@babel/parser` to find `import`, `require`, and dynamic `import()`.
+    *   **Vue**: Uses `@vue/compiler-sfc` to parse `<script>`, `<template>`, and `<style>`.
+    *   **Styles**: Uses `postcss` to find `@import` and `url()` references.
+3.  **Resolve**: Resolves all import paths to absolute file paths, handling aliases and extensions.
+4.  **Compare**: Identifies files that exist in the scan but are never referenced in the dependency graph.
 
-## Examples
+## Development
 
-### Basic Usage
+This project uses **Vitest** for unit testing.
 
-```javascript
-// vite.config.js
-import findUnusedFiles from "vite-plugin-unused-files";
+```bash
+# Install dependencies
+npm install
 
-export default {
-  plugins: [
-    findUnusedFiles({
-      include: ["src/**/*"],
-      exclude: ["src/**/*.d.ts"],
-      dryRun: true,
-    }),
-  ],
-};
+# Run tests
+npm test
+
+# Run manual integration test
+node test/manual-test.mjs
 ```
-
-### Production Build with File Deletion
-
-```javascript
-// vite.config.js
-import findUnusedFiles from "vite-plugin-unused-files";
-
-export default {
-  plugins: [
-    findUnusedFiles({
-      include: ["src/**/*"],
-      exclude: ["src/**/*.d.ts", "src/**/*.test.*"],
-      dryRun: process.env.NODE_ENV !== "production",
-      failOnUnused: true,
-    }),
-  ],
-};
-```
-
-## Notes
-
-- Always run with `dryRun: true` first to review the list of unused files
-- The plugin detects files that are not imported anywhere in your codebase
-- External URLs and data URLs are automatically filtered out
-- Use `failOnUnused: true` in CI/CD pipelines to catch unused files early
-- The analysis results are for reference only, please review carefully before deleting any files
 
 ## License
 

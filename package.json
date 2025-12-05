@@ -37,6 +37,10 @@
     "postcss-scss": "^4.0.9"
   },
   "scripts": {
-    "test": "node src/index.js"
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "vite": "^6.4.1",
+    "vitest": "^4.0.15"
   }
 }
